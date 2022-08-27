@@ -31,7 +31,7 @@ enum RviError {
     #[error("An error occurred while processing the image")]
     ImageError(#[from] image::ImageError),
 
-    #[error("And error occured while loading the image")]
+    #[error("And error occurred while loading the image")]
     IoError(#[from] std::io::Error),
 
     #[error("Unable to create new pixels instance")]

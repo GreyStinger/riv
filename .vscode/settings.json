@@ -1,5 +1,8 @@
 {
 	"cSpell.words": [
+		"imageops",
+		"Lanczos",
+		"thiserror",
 		"winit"
 	]
 }

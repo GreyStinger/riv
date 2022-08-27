@@ -1,0 +1,16 @@
+[package]
+name = "riv"
+version = "0.1.0"
+edition = "2021"
+authors = ["Grey Stinger"]
+description = "A rust based image viewer"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = {version = "3.2.17", features= [ "derive" ]}
+float-ord = "0.3.2"
+image = "0.24.3"
+pixels = "0.9.0"
+thiserror = "1.0.32"
+winit = "0.27.2"

@@ -13,6 +13,7 @@ float-ord = "0.3.2"
 image = "0.24.3"
 pixels = "0.9.0"
 thiserror = "1.0.32"
+tokio = "1.20.1"
 winit = "0.27.2"
 
 [profile.release]

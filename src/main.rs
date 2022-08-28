@@ -1,9 +1,9 @@
 use image::{imageops::FilterType, DynamicImage, FlatSamples};
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
-    dpi::PhysicalSize,
+    dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, KeyboardInput, VirtualKeyCode},
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy},
     monitor::MonitorHandle,
     window::{Window, WindowBuilder},
 };
@@ -46,6 +46,11 @@ enum RviError {
     NoPrimaryMonitor,
 }
 
+#[derive(Debug)]
+enum CustomWindowEvent {
+    Rebuild,
+}
+
 // Define type for main return result to auto convert error
 type Result<T> = std::result::Result<T, RviError>;
 
@@ -56,14 +61,14 @@ fn main() -> Result<()> {
         .with_guessed_format()?
         .decode()?;
 
-    let event_loop: EventLoop<()> = EventLoop::new();
+    let event_loop: EventLoop<CustomWindowEvent> =
+        EventLoopBuilder::<CustomWindowEvent>::with_user_event().build();
+    let event_loop_proxy: EventLoopProxy<CustomWindowEvent> = event_loop.create_proxy();
+
     let primary_monitor: MonitorHandle = event_loop
         .primary_monitor()
         .ok_or(RviError::NoPrimaryMonitor)?;
-
     let screen_size: PhysicalSize<u32> = primary_monitor.size();
-
-    // Get an array of scale float sizes for scaling
     let mut scale: [f32; 2] = [
         calc_scale_factor(
             &(screen_size.width * SCREEN_PERCENT / 100),
@@ -76,7 +81,9 @@ fn main() -> Result<()> {
             Some(config.up_scale),
         ),
     ];
+
     float_ord::sort(&mut scale);
+
     // Assign highest scale factor too scale so that it always scales
     // inside the window's bounds
     let scale: f32 = scale[1];
@@ -85,14 +92,14 @@ fn main() -> Result<()> {
         (stream_image.width() as f32 / scale).ceil() as u32,
         (stream_image.height() as f32 / scale).ceil() as u32,
     );
-
     let window: Window = WindowBuilder::new()
         .with_title("RIV")
         .with_inner_size(window_inner_size)
+        .with_position(PhysicalPosition::new(20, 20))
         .build(&event_loop)?;
-
-    let surface = SurfaceTexture::new(window_inner_size.width, window_inner_size.height, &window);
-    let mut pixels = Pixels::new(200, 200, surface)?;
+    let surface: SurfaceTexture<Window> =
+        SurfaceTexture::new(window_inner_size.width, window_inner_size.height, &window);
+    let mut pixels: Pixels = Pixels::new(200, 200, surface)?;
 
     redraw_surface(&mut pixels, &window_inner_size, &stream_image)?;
 
@@ -100,11 +107,14 @@ fn main() -> Result<()> {
         control_flow.set_wait();
 
         match event {
+            winit::event::Event::UserEvent(event) => match event {
+                CustomWindowEvent::Rebuild => {
+                    redraw_surface(&mut pixels, &window.inner_size(), &stream_image).unwrap();
+                }
+            },
+
             winit::event::Event::WindowEvent { window_id, event } if window_id == window.id() => {
                 match event {
-                    winit::event::WindowEvent::Resized(size) => {
-                        redraw_surface(&mut pixels, &size, &stream_image).unwrap();
-                    }
                     winit::event::WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     winit::event::WindowEvent::KeyboardInput {
                         input:
@@ -123,15 +133,15 @@ fn main() -> Result<()> {
                         _ => {}
                     },
 
-                    winit::event::WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        redraw_surface(&mut pixels, new_inner_size, &stream_image).unwrap();
-                    }
-
                     _ => {}
                 }
             }
+
             winit::event::Event::RedrawRequested(_) => {
-                let _ = pixels.render();
+                // Emit custom rebuild event on screen redraw
+                event_loop_proxy
+                    .send_event(CustomWindowEvent::Rebuild)
+                    .unwrap();
             }
 
             _ => {}

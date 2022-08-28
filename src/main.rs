@@ -37,6 +37,9 @@ enum RviError {
     #[error("Unable to create new pixels instance")]
     PixelsError(#[from] pixels::Error),
 
+    #[error("Unable to convert image to RGB8")]
+    ImageConversionError,
+
     #[error("Cannot find primary monitor")]
     NoPrimaryMonitor,
 }
@@ -44,6 +47,7 @@ enum RviError {
 // Define type for main return result to auto convert error
 type Result<T> = std::result::Result<T, RviError>;
 
+// TODO: Make image rescale on event called the least
 fn main() -> Result<()> {
     let config = Config::parse();
     
@@ -85,7 +89,7 @@ fn main() -> Result<()> {
     let surface = SurfaceTexture::new(window_inner_size.width, window_inner_size.height, &window);
     let mut pixels = Pixels::new(window_inner_size.width, window_inner_size.height, surface)?;
 
-    let image_bytes = image.as_rgb8().unwrap().as_flat_samples();
+    let image_bytes = image.as_rgb8().ok_or(RviError::ImageConversionError)?.as_flat_samples();
     let image_bytes = image_bytes.as_slice();
 
     image_bytes

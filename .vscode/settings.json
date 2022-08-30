@@ -2,6 +2,7 @@
 	"cSpell.words": [
 		"imageops",
 		"Lanczos",
+		"splitn",
 		"thiserror",
 		"winit"
 	]

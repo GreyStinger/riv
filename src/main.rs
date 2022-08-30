@@ -1,3 +1,5 @@
+use core::option_env;
+
 use image::{imageops::FilterType, DynamicImage, FlatSamples};
 use pixels::{Pixels, SurfaceTexture};
 use winit::{
@@ -65,10 +67,20 @@ fn main() -> Result<()> {
         EventLoopBuilder::<CustomWindowEvent>::with_user_event().build();
     let event_loop_proxy: EventLoopProxy<CustomWindowEvent> = event_loop.create_proxy();
 
-    let primary_monitor: MonitorHandle = event_loop
-        .primary_monitor()
-        .ok_or(RviError::NoPrimaryMonitor)?;
-    let screen_size: PhysicalSize<u32> = primary_monitor.size();
+    let screen_size: PhysicalSize<u32> = match get_screen_size(&event_loop) {
+        Ok(screen_size) => screen_size,
+        Err(_) => {
+            let ss: (u32, u32) = match option_env!("SCREEN_SIZE") as Option<&str> {
+                Some(ss) => {
+                    let ss: Vec<&str> = ss.splitn(2, ",").collect();
+                    (ss[0].parse().unwrap(), ss[1].parse().unwrap())
+                },
+                None => (640, 480),
+            };
+            PhysicalSize::new(ss.0, ss.1)
+        }
+    };
+
     let mut scale: [f32; 2] = [
         calc_scale_factor(
             &(screen_size.width * SCREEN_PERCENT / 100),
@@ -84,8 +96,6 @@ fn main() -> Result<()> {
 
     float_ord::sort(&mut scale);
 
-    // Assign highest scale factor too scale so that it always scales
-    // inside the window's bounds
     let scale: f32 = scale[1];
 
     let window_inner_size: PhysicalSize<u32> = PhysicalSize::new(
@@ -147,6 +157,14 @@ fn main() -> Result<()> {
             _ => {}
         }
     })
+}
+
+fn get_screen_size(event_loop: &EventLoop<CustomWindowEvent>) -> Result<PhysicalSize<u32>> {
+    let primary_monitor: MonitorHandle = event_loop
+        .primary_monitor()
+        .ok_or(RviError::NoPrimaryMonitor)?;
+    
+    Ok(primary_monitor.size())
 }
 
 fn calc_scale_factor(max_size: &u32, current_size: &u32, up_scale: Option<bool>) -> f32 {

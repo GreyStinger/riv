@@ -4,6 +4,8 @@
 		"Lanczos",
 		"splitn",
 		"thiserror",
+		"vsync",
+		"wgpu",
 		"winit"
 	]
 }

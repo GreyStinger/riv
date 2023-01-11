@@ -1,7 +1,9 @@
-use core::option_env;
+use std::option_env;
 
 use image::{imageops::FilterType, DynamicImage, FlatSamples};
-use pixels::{Pixels, SurfaceTexture};
+use pixels::wgpu::PowerPreference;
+use pixels::wgpu::RequestAdapterOptions;
+use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, KeyboardInput, VirtualKeyCode},
@@ -57,6 +59,9 @@ enum CustomWindowEvent {
 type Result<T> = std::result::Result<T, RviError>;
 
 fn main() -> Result<()> {
+    if !cfg!(debug_assertions) {
+        std::env::set_var("RUST_BACKTRACE", "1");
+    };
     let config: Config = Config::parse();
 
     let stream_image: DynamicImage = image::io::Reader::open(&config.file_name)?
@@ -74,7 +79,7 @@ fn main() -> Result<()> {
                 Some(ss) => {
                     let ss: Vec<&str> = ss.splitn(2, ",").collect();
                     (ss[0].parse().unwrap(), ss[1].parse().unwrap())
-                },
+                }
                 None => (640, 480),
             };
             PhysicalSize::new(ss.0, ss.1)
@@ -109,7 +114,21 @@ fn main() -> Result<()> {
         .build(&event_loop)?;
     let surface: SurfaceTexture<Window> =
         SurfaceTexture::new(window_inner_size.width, window_inner_size.height, &window);
-    let mut pixels: Pixels = Pixels::new(200, 200, surface)?;
+
+    let mut pixels: Pixels = PixelsBuilder::new(200, 200, surface)
+        .device_descriptor(pixels::wgpu::DeviceDescriptor {
+            features: pixels::wgpu::Features::empty(),
+            limits: pixels::wgpu::Limits::default(),
+            label: None,
+        })
+        .request_adapter_options(RequestAdapterOptions {
+            power_preference: PowerPreference::default(),
+            force_fallback_adapter: false,
+            compatible_surface: None,
+        })
+        .enable_vsync(false)
+        .build()?;
+    // let mut pixels: Pixels = Pixels::new(200, 200, surface)?;
 
     redraw_surface(&mut pixels, &window_inner_size, &stream_image)?;
 
@@ -163,7 +182,7 @@ fn get_screen_size(event_loop: &EventLoop<CustomWindowEvent>) -> Result<Physical
     let primary_monitor: MonitorHandle = event_loop
         .primary_monitor()
         .ok_or(RviError::NoPrimaryMonitor)?;
-    
+
     Ok(primary_monitor.size())
 }
 

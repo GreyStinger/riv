@@ -128,6 +128,11 @@ fn main() -> Result<()> {
     if cfg!(debug_assertions) {
         println!("Building initial pixels with low performance mode as:");
         dbg!(config.low_performance_mode);
+        // Enumerate adapters
+        let instance = pixels::wgpu::Instance::new(pixels::wgpu::Backends::all());
+        for adapter in instance.enumerate_adapters(pixels::wgpu::Backends::all()) {
+            dbg!(adapter);
+        };
     }
     let mut pixels: Pixels = PixelsBuilder::new(200, 200, surface)
         .device_descriptor(pixels::wgpu::DeviceDescriptor {

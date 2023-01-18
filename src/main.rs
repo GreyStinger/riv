@@ -26,9 +26,9 @@ pub struct Config {
     #[clap(short, long, takes_value = false)]
     up_scale: bool,
 
-    /// Whether to force discrete gpu
+    /// Whether to force integrated gpu
     #[clap(short, long, takes_value = false)]
-    force_high_performance: bool,
+    low_performance_mode: bool,
 }
 
 // Custom error type to auto handle any errors in main thread
@@ -126,8 +126,8 @@ fn main() -> Result<()> {
         SurfaceTexture::new(window_inner_size.width, window_inner_size.height, &window);
 
     if cfg!(debug_assertions) {
-        println!("Building initial pixels with power preference:");
-        dbg!(config.force_high_performance);
+        println!("Building initial pixels with low performance mode as:");
+        dbg!(config.low_performance_mode);
     }
     let mut pixels: Pixels = PixelsBuilder::new(200, 200, surface)
         .device_descriptor(pixels::wgpu::DeviceDescriptor {
@@ -136,17 +136,16 @@ fn main() -> Result<()> {
             label: None,
         })
         .request_adapter_options(RequestAdapterOptions {
-            power_preference: if config.force_high_performance {
-                pixels::wgpu::PowerPreference::HighPerformance
-            } else {
+            power_preference: if config.low_performance_mode {
                 pixels::wgpu::PowerPreference::LowPower
+            } else {
+                pixels::wgpu::PowerPreference::HighPerformance
             },
             force_fallback_adapter: false,
             compatible_surface: None,
         })
         .enable_vsync(false)
         .build()?;
-    // let mut pixels: Pixels = Pixels::new(200, 200, surface)?;
 
     redraw_surface(&mut pixels, &window_inner_size, &stream_image)?;
 
@@ -232,8 +231,6 @@ fn redraw_surface(
         println!("Converting image to rgb8");
     }
     let rgb8_image = image.into_rgb8();
-    // .as_rgb8()
-    // .ok_or(RviError::ImageConversionError)?
     let image_bytes: FlatSamples<&[u8]> = rgb8_image.as_flat_samples();
     let image_bytes: &[u8] = image_bytes.as_slice();
 

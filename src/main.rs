@@ -1,7 +1,6 @@
 use std::option_env;
 
 use image::{imageops::FilterType, DynamicImage, FlatSamples};
-use pixels::wgpu::PowerPreference;
 use pixels::wgpu::RequestAdapterOptions;
 use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use winit::{
@@ -26,6 +25,10 @@ pub struct Config {
     /// Wether to scale the image up
     #[clap(short, long, takes_value = false)]
     up_scale: bool,
+
+    /// Whether to force discrete gpu
+    #[clap(short, long, takes_value = false)]
+    force_high_performance: bool,
 }
 
 // Custom error type to auto handle any errors in main thread
@@ -61,12 +64,16 @@ fn main() -> Result<()> {
     };
     let config: Config = Config::parse();
 
-    if cfg!(debug_assertions) { println!("Fetching and decoding stream image"); }
+    if cfg!(debug_assertions) {
+        println!("Fetching and decoding stream image");
+    }
     let stream_image: DynamicImage = image::io::Reader::open(&config.file_name)?
         .with_guessed_format()?
         .decode()?;
 
-    if cfg!(debug_assertions) { println!("Creating event loop"); }
+    if cfg!(debug_assertions) {
+        println!("Creating event loop");
+    }
     let event_loop: EventLoop<CustomWindowEvent> =
         winit::event_loop::EventLoopBuilder::<CustomWindowEvent>::with_user_event().build();
     let event_loop_proxy: EventLoopProxy<CustomWindowEvent> = event_loop.create_proxy();
@@ -107,7 +114,9 @@ fn main() -> Result<()> {
         (stream_image.height() as f32 / scale).ceil() as u32,
     );
 
-    if cfg!(debug_assertions) { println!("Creating a new window"); }
+    if cfg!(debug_assertions) {
+        println!("Creating a new window");
+    }
     let window: Window = WindowBuilder::new()
         .with_title("RIV")
         .with_inner_size(window_inner_size)
@@ -118,7 +127,7 @@ fn main() -> Result<()> {
 
     if cfg!(debug_assertions) {
         println!("Building initial pixels with power preference:");
-        dbg!(PowerPreference::default());
+        dbg!(config.force_high_performance);
     }
     let mut pixels: Pixels = PixelsBuilder::new(200, 200, surface)
         .device_descriptor(pixels::wgpu::DeviceDescriptor {
@@ -127,7 +136,11 @@ fn main() -> Result<()> {
             label: None,
         })
         .request_adapter_options(RequestAdapterOptions {
-            power_preference: PowerPreference::default(),
+            power_preference: if config.force_high_performance {
+                pixels::wgpu::PowerPreference::HighPerformance
+            } else {
+                pixels::wgpu::PowerPreference::LowPower
+            },
             force_fallback_adapter: false,
             compatible_surface: None,
         })
@@ -206,17 +219,21 @@ fn redraw_surface(
     size: &PhysicalSize<u32>,
     stream_image: &DynamicImage,
 ) -> Result<()> {
-    if cfg!(debug_assertions) { println!("Attempting resize on image"); }
+    if cfg!(debug_assertions) {
+        println!("Attempting resize on image");
+    }
     let image: DynamicImage = stream_image.resize(size.width, size.height, FilterType::Triangle);
 
     // Use new build image to resize the pixels buffer
     pixels.resize_buffer(image.width(), image.height());
     pixels.resize_surface(size.width, size.height);
 
-    if cfg!(debug_assertions) { println!("Converting image to rgb8"); }
-    let rgb8_image  = image.into_rgb8();
-        // .as_rgb8()
-        // .ok_or(RviError::ImageConversionError)?
+    if cfg!(debug_assertions) {
+        println!("Converting image to rgb8");
+    }
+    let rgb8_image = image.into_rgb8();
+    // .as_rgb8()
+    // .ok_or(RviError::ImageConversionError)?
     let image_bytes: FlatSamples<&[u8]> = rgb8_image.as_flat_samples();
     let image_bytes: &[u8] = image_bytes.as_slice();
 
@@ -230,7 +247,9 @@ fn redraw_surface(
             pixel[3] = 0xff;
         });
 
-    if cfg!(debug_assertions) { println!("Rendering pixels"); }
+    if cfg!(debug_assertions) {
+        println!("Rendering pixels");
+    }
     pixels.render()?;
 
     Ok(())

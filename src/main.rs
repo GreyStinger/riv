@@ -7,7 +7,7 @@ use pixels::{Pixels, PixelsBuilder, SurfaceTexture};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, KeyboardInput, VirtualKeyCode},
-    event_loop::{ControlFlow, EventLoop, EventLoopBuilder, EventLoopProxy},
+    event_loop::{ControlFlow, EventLoop, EventLoopProxy},
     monitor::MonitorHandle,
     window::{Window, WindowBuilder},
 };
@@ -43,9 +43,6 @@ enum RviError {
     #[error("Unable to create new pixels instance")]
     PixelsError(#[from] pixels::Error),
 
-    #[error("Unable to convert image to RGB8")]
-    ImageConversionError,
-
     #[error("Cannot find primary monitor")]
     NoPrimaryMonitor,
 }
@@ -59,17 +56,19 @@ enum CustomWindowEvent {
 type Result<T> = std::result::Result<T, RviError>;
 
 fn main() -> Result<()> {
-    if !cfg!(debug_assertions) {
-        std::env::set_var("RUST_BACKTRACE", "1");
+    if cfg!(debug_assertions) {
+        std::env::set_var("RUST_BACKTRACE", "full");
     };
     let config: Config = Config::parse();
 
+    if cfg!(debug_assertions) { println!("Fetching and decoding stream image"); }
     let stream_image: DynamicImage = image::io::Reader::open(&config.file_name)?
         .with_guessed_format()?
         .decode()?;
 
+    if cfg!(debug_assertions) { println!("Creating event loop"); }
     let event_loop: EventLoop<CustomWindowEvent> =
-        EventLoopBuilder::<CustomWindowEvent>::with_user_event().build();
+        winit::event_loop::EventLoopBuilder::<CustomWindowEvent>::with_user_event().build();
     let event_loop_proxy: EventLoopProxy<CustomWindowEvent> = event_loop.create_proxy();
 
     let screen_size: PhysicalSize<u32> = match get_screen_size(&event_loop) {
@@ -107,6 +106,8 @@ fn main() -> Result<()> {
         (stream_image.width() as f32 / scale).ceil() as u32,
         (stream_image.height() as f32 / scale).ceil() as u32,
     );
+
+    if cfg!(debug_assertions) { println!("Creating a new window"); }
     let window: Window = WindowBuilder::new()
         .with_title("RIV")
         .with_inner_size(window_inner_size)
@@ -115,6 +116,10 @@ fn main() -> Result<()> {
     let surface: SurfaceTexture<Window> =
         SurfaceTexture::new(window_inner_size.width, window_inner_size.height, &window);
 
+    if cfg!(debug_assertions) {
+        println!("Building initial pixels with power preference:");
+        dbg!(PowerPreference::default());
+    }
     let mut pixels: Pixels = PixelsBuilder::new(200, 200, surface)
         .device_descriptor(pixels::wgpu::DeviceDescriptor {
             features: pixels::wgpu::Features::empty(),
@@ -201,16 +206,18 @@ fn redraw_surface(
     size: &PhysicalSize<u32>,
     stream_image: &DynamicImage,
 ) -> Result<()> {
+    if cfg!(debug_assertions) { println!("Attempting resize on image"); }
     let image: DynamicImage = stream_image.resize(size.width, size.height, FilterType::Triangle);
 
     // Use new build image to resize the pixels buffer
     pixels.resize_buffer(image.width(), image.height());
     pixels.resize_surface(size.width, size.height);
 
-    let image_bytes: FlatSamples<&[u8]> = image
-        .as_rgb8()
-        .ok_or(RviError::ImageConversionError)?
-        .as_flat_samples();
+    if cfg!(debug_assertions) { println!("Converting image to rgb8"); }
+    let rgb8_image  = image.into_rgb8();
+        // .as_rgb8()
+        // .ok_or(RviError::ImageConversionError)?
+    let image_bytes: FlatSamples<&[u8]> = rgb8_image.as_flat_samples();
     let image_bytes: &[u8] = image_bytes.as_slice();
 
     image_bytes
@@ -223,6 +230,7 @@ fn redraw_surface(
             pixel[3] = 0xff;
         });
 
+    if cfg!(debug_assertions) { println!("Rendering pixels"); }
     pixels.render()?;
 
     Ok(())

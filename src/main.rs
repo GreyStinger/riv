@@ -91,7 +91,7 @@ fn main() -> Result<()> {
             PhysicalSize::new(ss.0, ss.1)
         }
     };
-    dbg!(screen_size);
+    if cfg!(debug_assertions) { dbg!(screen_size); }
 
     let mut scale: [f32; 2] = [
         calc_scale_factor(

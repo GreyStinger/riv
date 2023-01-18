@@ -180,7 +180,6 @@ fn main() -> Result<()> {
                     } => match virtual_keycode {
                         Some(kc) => match kc {
                             VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
-                            VirtualKeyCode::Q => *control_flow = ControlFlow::Exit,
                             VirtualKeyCode::R => {
                                 redraw_surface(&mut pixels, &window.inner_size(), &stream_image)
                                     .unwrap()

@@ -91,6 +91,7 @@ fn main() -> Result<()> {
             PhysicalSize::new(ss.0, ss.1)
         }
     };
+    if cfg!(debug_assertions) { dbg!(screen_size); }
 
     let mut scale: [f32; 2] = [
         calc_scale_factor(
@@ -128,6 +129,11 @@ fn main() -> Result<()> {
     if cfg!(debug_assertions) {
         println!("Building initial pixels with low performance mode as:");
         dbg!(config.low_performance_mode);
+        // Enumerate adapters
+        let instance = pixels::wgpu::Instance::new(pixels::wgpu::Backends::all());
+        for adapter in instance.enumerate_adapters(pixels::wgpu::Backends::all()) {
+            dbg!(adapter);
+        }
     }
     let mut pixels: Pixels = PixelsBuilder::new(200, 200, surface)
         .device_descriptor(pixels::wgpu::DeviceDescriptor {
@@ -137,13 +143,14 @@ fn main() -> Result<()> {
         })
         .request_adapter_options(RequestAdapterOptions {
             power_preference: if config.low_performance_mode {
-                pixels::wgpu::PowerPreference::LowPower
+                pixels::wgpu::PowerPreference::default()
             } else {
                 pixels::wgpu::PowerPreference::HighPerformance
             },
-            force_fallback_adapter: false,
             compatible_surface: None,
+            force_fallback_adapter: false,
         })
+        .wgpu_backend(pixels::wgpu::Backends::all())
         .enable_vsync(false)
         .build()?;
 
@@ -170,13 +177,16 @@ fn main() -> Result<()> {
                                 ..
                             },
                         ..
-                    } => match virtual_keycode.unwrap() {
-                        VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
-                        VirtualKeyCode::R => {
-                            redraw_surface(&mut pixels, &window.inner_size(), &stream_image)
-                                .unwrap()
-                        }
-                        _ => {}
+                    } => match virtual_keycode {
+                        Some(kc) => match kc {
+                            VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
+                            VirtualKeyCode::R => {
+                                redraw_surface(&mut pixels, &window.inner_size(), &stream_image)
+                                    .unwrap()
+                            }
+                            _ => {}
+                        },
+                        None => {}
                     },
 
                     _ => {}

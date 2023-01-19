@@ -1,6 +1,6 @@
 [package]
 name = "riv"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2021"
 authors = ["Grey Stinger"]
 description = "A rust based image viewer"

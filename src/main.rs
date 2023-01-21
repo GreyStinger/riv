@@ -93,7 +93,7 @@ fn main() -> Result<()> {
     };
     if cfg!(debug_assertions) { dbg!(screen_size); }
 
-    let mut scale: [f32; 2] = [
+    let scale: [f32; 2] = [
         calc_scale_factor(
             &(screen_size.width * SCREEN_PERCENT / 100),
             &stream_image.width(),
@@ -106,9 +106,7 @@ fn main() -> Result<()> {
         ),
     ];
 
-    float_ord::sort(&mut scale);
-
-    let scale: f32 = scale[1];
+    let scale: f32 =  if scale[0] > scale[1] { scale[0] } else { scale[1] };
 
     let window_inner_size: PhysicalSize<u32> = PhysicalSize::new(
         (stream_image.width() as f32 / scale).ceil() as u32,
